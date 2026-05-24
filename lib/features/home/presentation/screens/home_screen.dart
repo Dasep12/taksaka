@@ -10,6 +10,10 @@ import '../widgets/attendance_card.dart';
 import '../widgets/quick_menu_grid.dart';
 import '../widgets/team_member_row.dart';
 import '../widgets/announcement_card.dart';
+import '../../../attendance/domain/attendance_models.dart';
+import '../../../attendance/presentation/screens/attendance_screen.dart';
+import '../../../auth/presentation/screens/face_register_screen.dart';
+import '../../../attendance/data/face_service.dart';
 
 /// ─────────────────────────────────────────
 ///  HOME SCREEN
@@ -25,32 +29,128 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   AttendanceSchedule _schedule = HomeMockData.todaySchedule;
 
-  void _handleClockIn() {
-    setState(() {
-      _schedule = AttendanceSchedule(
-        shiftLabel: _schedule.shiftLabel,
-        date: _schedule.date,
-        startTime: _schedule.startTime,
-        endTime: _schedule.endTime,
-        isClockedIn: true,
-        isClockedOut: false,
-      );
-    });
-    _showSnack('Clocked In successfully! ✅');
+  static const _userId = 'demo_user';
+  static const _userName = 'Savannah Nguyen';
+
+  Future<void> _handleClockIn() async {
+    final registered = await FaceService.instance.hasRegisteredFace(_userId);
+    if (!registered && mounted) {
+      final ok = await _promptFaceRegister();
+      if (ok != true) return;
+    }
+    if (!mounted) return;
+    final result = await Navigator.push<AttendanceRecord>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AttendanceScreen(
+          type: AttendanceType.clockIn,
+          userId: _userId,
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _schedule = AttendanceSchedule(
+          shiftLabel: _schedule.shiftLabel,
+          date: _schedule.date,
+          startTime: result.formattedTime,
+          endTime: _schedule.endTime,
+          isClockedIn: true,
+          isClockedOut: false,
+        );
+      });
+      _showSnack('Clock In pukul ${result.formattedTime} berhasil! ✅');
+    }
   }
 
-  void _handleClockOut() {
-    setState(() {
-      _schedule = AttendanceSchedule(
-        shiftLabel: _schedule.shiftLabel,
-        date: _schedule.date,
-        startTime: _schedule.startTime,
-        endTime: _schedule.endTime,
-        isClockedIn: true,
-        isClockedOut: true,
-      );
-    });
-    _showSnack('Clocked Out successfully! 👋');
+  Future<void> _handleClockOut() async {
+    final registered = await FaceService.instance.hasRegisteredFace(_userId);
+    if (!registered && mounted) {
+      final ok = await _promptFaceRegister();
+      if (ok != true) return;
+    }
+    if (!mounted) return;
+    final result = await Navigator.push<AttendanceRecord>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AttendanceScreen(
+          type: AttendanceType.clockOut,
+          userId: _userId,
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _schedule = AttendanceSchedule(
+          shiftLabel: _schedule.shiftLabel,
+          date: _schedule.date,
+          startTime: _schedule.startTime,
+          endTime: result.formattedTime,
+          isClockedIn: true,
+          isClockedOut: true,
+        );
+      });
+      _showSnack('Clock Out pukul ${result.formattedTime} berhasil! 👋');
+    }
+  }
+
+  Future<bool?> _promptFaceRegister() async {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(children: [
+          Icon(Icons.face_retouching_natural, color: AppColors.primary),
+          SizedBox(width: 10),
+          Text('Registrasi Wajah', style: TextStyle(fontSize: 16,
+              fontWeight: FontWeight.w700, color: AppColors.primary)),
+        ]),
+        content: const Text(
+          'Anda belum meregistrasi wajah untuk absensi.\nRegistrasi sekarang untuk melanjutkan.',
+          style: TextStyle(fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal', style: TextStyle(color: AppColors.grey600)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+
+              Navigator.pop(context);
+
+              final ok = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => FaceRegisterScreen(
+                    userId: _userId,
+                    userName: _userName,
+                  ),
+                ),
+              );
+
+              if (!mounted) return;
+
+              if (ok == true) {
+                // success action
+              }
+
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Daftar Sekarang',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSnack(String msg) {
