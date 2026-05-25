@@ -26,6 +26,8 @@ class AttendanceSchedule {
     required this.endTime,
     this.isClockedIn = false,
     this.isClockedOut = false,
+    this.checkInTime,
+    this.checkOutTime,
   });
 
   final String shiftLabel;
@@ -34,6 +36,8 @@ class AttendanceSchedule {
   final String endTime;
   final bool isClockedIn;
   final bool isClockedOut;
+  final String? checkInTime;
+  final String? checkOutTime;
 
   String get timeRange => '$startTime - $endTime';
 }
@@ -90,4 +94,14 @@ class Announcement {
   final String date;
   final String? imageUrl;
   final String? category;
+
+  factory Announcement.fromJson(Map<String, dynamic> json) {
+    return Announcement(
+      id: json['id'].toString(),
+      title: json['title'] ?? '',
+      description: json['content'] ?? '',
+      date: json['created_at'] ?? '',
+      category: json['category'],
+    );
+  }
 }

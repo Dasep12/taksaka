@@ -9,6 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../domain/attendance_models.dart';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import '../../auth/data/auth_service.dart';
 
 /// ─────────────────────────────────────────
 ///  FACE SERVICE
@@ -27,25 +30,25 @@ class FaceService {
 
   late final FaceDetector _detector = FaceDetector(
     options: FaceDetectorOptions(
-      enableClassification: true,   // senyum, mata terbuka
+      enableClassification: true, // senyum, mata terbuka
       enableTracking: true,
       performanceMode: FaceDetectorMode.accurate,
-      minFaceSize: 0.3,             // wajah minimal 30% lebar frame
+      minFaceSize: 0.3, // wajah minimal 30% lebar frame
     ),
   );
 
   // ── Camera helpers ────────────────────
 
   /// Daftar kamera yang tersedia (biasanya [back, front])
-  Future<List<CameraDescription>> getAvailableCameras() =>
-      availableCameras();
+  Future<List<CameraDescription>> getAvailableCameras() => availableCameras();
 
   /// Cari kamera depan
   Future<CameraDescription?> getFrontCamera() async {
     final cams = await availableCameras();
     try {
       return cams.firstWhere(
-          (c) => c.lensDirection == CameraLensDirection.front);
+        (c) => c.lensDirection == CameraLensDirection.front,
+      );
     } catch (_) {
       return cams.isNotEmpty ? cams.first : null;
     }
@@ -61,21 +64,26 @@ class FaceService {
     final format = InputImageFormatValue.fromRawValue(image.format.raw);
     if (format == null) return null;
 
-    final rotation =
-        InputImageRotationValue.fromRawValue(camera.sensorOrientation);
+    final rotation = InputImageRotationValue.fromRawValue(
+      camera.sensorOrientation,
+    );
     if (rotation == null) return null;
 
-    // Hanya support single plane (NV21 / BGRA8888)
     if (image.planes.isEmpty) return null;
-    final plane = image.planes.first;
+
+    final WriteBuffer allBytes = WriteBuffer();
+    for (final Plane plane in image.planes) {
+      allBytes.putUint8List(plane.bytes);
+    }
+    final bytes = allBytes.done().buffer.asUint8List();
 
     return InputImage.fromBytes(
-      bytes: plane.bytes,
+      bytes: bytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
         rotation: rotation,
         format: format,
-        bytesPerRow: plane.bytesPerRow,
+        bytesPerRow: image.planes.first.bytesPerRow,
       ),
     );
   }
@@ -105,88 +113,133 @@ class FaceService {
       FaceLandmarkType.bottomMouth,
     ];
 
-    final w = imageSize.width;
-    final h = imageSize.height;
+    final bb = face.boundingBox;
 
-    // Normalisasi posisi landmark ke [0,1]
+    // Normalisasi posisi landmark relatif terhadap bounding box wajah
     for (final type in landmarks) {
       final lm = face.landmarks[type];
       if (lm != null) {
-        features.add(lm.position.x / w);
-        features.add(lm.position.y / h);
+        features.add((lm.position.x - bb.left) / bb.width);
+        features.add((lm.position.y - bb.top) / bb.height);
       } else {
-        features.add(0.0);
-        features.add(0.0);
+        features.add(0.5);
+        features.add(0.5);
       }
     }
 
-    // Tambah bounding box (4 nilai)
-    final bb = face.boundingBox;
-    features.add(bb.left / w);
-    features.add(bb.top / h);
-    features.add(bb.width / w);
-    features.add(bb.height / h);
+    // Tambah aspek rasio bounding box (posisi absolut dihapus agar pos-invariant)
+    features.add(bb.width / bb.height);
+    features.add(0.0);
+    features.add(0.0);
+    features.add(0.0);
 
-    // Tambah rotasi & klasifikasi (8 nilai)
-    features.add((face.headEulerAngleX ?? 0) / 90);
-    features.add((face.headEulerAngleY ?? 0) / 90);
-    features.add((face.headEulerAngleZ ?? 0) / 90);
-    features.add(face.smilingProbability ?? 0);
-    features.add(face.leftEyeOpenProbability ?? 0);
-    features.add(face.rightEyeOpenProbability ?? 0);
+    // Tambah rotasi & klasifikasi (bobot dikurangi agar lebih toleran)
+    features.add(((face.headEulerAngleX ?? 0) / 90) * 0.5);
+    features.add(((face.headEulerAngleY ?? 0) / 90) * 0.5);
+    features.add(((face.headEulerAngleZ ?? 0) / 90) * 0.5);
+    features.add((face.smilingProbability ?? 0) * 0.2);
+    features.add((face.leftEyeOpenProbability ?? 0) * 0.2);
+    features.add((face.rightEyeOpenProbability ?? 0) * 0.2);
     features.add(0.0);
     features.add(0.0);
 
     // Pad atau potong ke 128 dim
-    while (features.length < 128) features.add(0.0);
+    while (features.length < 128) {
+      features.add(0.0);
+    }
     return features.take(128).toList();
   }
 
   // ── Storage ───────────────────────────
 
-  /// Simpan embedding wajah ke SharedPreferences
+  // ── Storage ───────────────────────────
+
+  /// Simpan embedding wajah ke Backend (API)
   Future<void> saveEmbedding(FaceEmbedding embedding) async {
-    final prefs = await SharedPreferences.getInstance();
-    final existing = await loadAllEmbeddings();
+    final token = await AuthService.instance.getToken();
+    if (token == null) throw Exception('No token found');
 
-    // Hapus embedding lama untuk user yang sama, simpan yang baru
-    final updated = existing
-        .where((e) => e.userId != embedding.userId)
-        .toList()
-      ..add(embedding);
+    final url = Uri.parse('${AuthService.instance.baseUrl}/faceEmbeding');
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({
+        'embedding': embedding.values,
+        'photo_path': null, // Tambahkan logic upload foto jika ada
+      }),
+    );
 
-    final jsonList = updated.map((e) => jsonEncode(e.toJson())).toList();
-    await prefs.setStringList(_prefKey, jsonList);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to save embedding to server');
+    }
   }
 
-  /// Load semua embedding tersimpan
-  Future<List<FaceEmbedding>> loadAllEmbeddings() async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(_prefKey) ?? [];
-    return list.map((s) {
-      try {
-        return FaceEmbedding.fromJson(jsonDecode(s) as Map<String, dynamic>);
-      } catch (_) {
-        return null;
+  /// Load embedding tersimpan dari Backend untuk user tertentu
+  Future<FaceEmbedding?> loadUserEmbedding(String userId) async {
+    final token = await AuthService.instance.getToken();
+    if (token == null) return null;
+
+    final url = Uri.parse('${AuthService.instance.baseUrl}/get-faceEmbeding');
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] == true && data['data'] != null) {
+        // Data dari Laravel bisa berupa array objek atau single objek
+        final list = data['data'] is List
+            ? data['data'] as List
+            : [data['data']];
+        if (list.isNotEmpty) {
+          final first = list.first;
+          // Format respons: employee_id, embedding, photo_path, dll
+          // Embedding dari JSON bisa berupa string JSON atau List, tergantung dari respon backend
+          List<double> values = [];
+          if (first['embedding'] is String) {
+            final decoded = jsonDecode(first['embedding']);
+            values = (decoded as List)
+                .map((e) => double.parse(e.toString()))
+                .toList();
+          } else if (first['embedding'] is List) {
+            values = (first['embedding'] as List)
+                .map((e) => double.parse(e.toString()))
+                .toList();
+          }
+
+          if (values.isNotEmpty) {
+            return FaceEmbedding(
+              userId: first['employee_id'].toString(),
+              values: values,
+              capturedAt: first['created_at'] != null
+                  ? DateTime.tryParse(first['created_at']) ?? DateTime.now()
+                  : DateTime.now(),
+            );
+          }
+        }
       }
-    }).whereType<FaceEmbedding>().toList();
+    }
+    return null;
   }
 
   /// Cek apakah user sudah registrasi wajah
   Future<bool> hasRegisteredFace(String userId) async {
-    final all = await loadAllEmbeddings();
-    return all.any((e) => e.userId == userId);
+    try {
+      final embedding = await loadUserEmbedding(userId);
+      return embedding != null;
+    } catch (_) {
+      return false;
+    }
   }
 
-  /// Hapus wajah terdaftar
+  /// Hapus wajah terdaftar (Belum didukung oleh endpoint, bisa ditambahkan delete /faceEmbeding)
   Future<void> clearFace(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final existing = await loadAllEmbeddings();
-    final updated = existing.where((e) => e.userId != userId).toList();
-    await prefs.setStringList(
-      _prefKey,
-      updated.map((e) => jsonEncode(e.toJson())).toList(),
-    );
+    // Implementasi delete ke server jika diperlukan
   }
 
   // ── Verifikasi ────────────────────────
@@ -197,27 +250,23 @@ class FaceService {
     required String userId,
     required List<double> currentEmbedding,
   }) async {
-    final stored = await loadAllEmbeddings();
-    final userEmbeddings = stored.where((e) => e.userId == userId).toList();
+    final storedEmbedding = await loadUserEmbedding(userId);
 
-    if (userEmbeddings.isEmpty) {
+    if (storedEmbedding == null) {
       return FaceVerifyResult.failure(
         'Wajah belum diregistrasi. Lakukan registrasi wajah terlebih dahulu.',
       );
     }
 
-    // Ambil similarity tertinggi dari semua embedding tersimpan
-    double best = 0;
+    // Ambil similarity dari embedding tersimpan
     final current = FaceEmbedding(
       userId: userId,
       values: currentEmbedding,
       capturedAt: DateTime.now(),
     );
 
-    for (final stored in userEmbeddings) {
-      final sim = current.similarityTo(stored);
-      if (sim > best) best = sim;
-    }
+    final sim = current.similarityTo(storedEmbedding);
+    final best = sim;
 
     if (best >= matchThreshold) {
       return FaceVerifyResult.success(confidence: best);

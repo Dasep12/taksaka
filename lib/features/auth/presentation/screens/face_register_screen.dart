@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -72,7 +73,10 @@ class _FaceRegisterScreenState extends State<FaceRegisterScreen>
       final cam = await FaceService.instance.getFrontCamera();
       if (cam == null) throw Exception('Kamera depan tidak ditemukan');
       final ctrl = CameraController(cam, ResolutionPreset.high,
-          enableAudio: false, imageFormatGroup: ImageFormatGroup.nv21);
+          enableAudio: false,
+          imageFormatGroup: Platform.isAndroid
+              ? ImageFormatGroup.nv21
+              : ImageFormatGroup.bgra8888);
       await ctrl.initialize();
       if (!mounted) { ctrl.dispose(); return; }
       setState(() { _cam = ctrl; _camReady = true; });
@@ -85,13 +89,21 @@ class _FaceRegisterScreenState extends State<FaceRegisterScreen>
   void _startLiveFaceDetection() async {
     if (!_camReady || _cam == null || _isStreamRunning) return;
     _isStreamRunning = true;
-    await _cam!.startImageStream(_onLiveFrame);
+    if (!_cam!.value.isStreamingImages) {
+      try {
+        await _cam!.startImageStream(_onLiveFrame);
+      } catch (e) {
+        debugPrint('Error startImageStream: $e');
+      }
+    }
   }
 
   Future<void> _stopStream() async {
     if (!_isStreamRunning) return;
     _isStreamRunning = false;
-    await _cam?.stopImageStream();
+    if (_cam?.value.isStreamingImages == true) {
+      await _cam?.stopImageStream();
+    }
   }
 
   Future<void> _onLiveFrame(CameraImage image) async {
@@ -146,22 +158,22 @@ class _FaceRegisterScreenState extends State<FaceRegisterScreen>
       // Validasi pose per step
       final yaw   = face.headEulerAngleY ?? 0;
       final pitch = (face.headEulerAngleX ?? 0).abs();
-      if (pitch > 20) {
+      if (pitch > 30) {
         _showError('Jaga kepala tetap tegak (jangan mendongak/menunduk)');
         await _restartStream();
         return;
       }
-      if (_currentStep == 0 && yaw.abs() > 15) {
+      if (_currentStep == 0 && yaw.abs() > 20) {
         _showError('Langkah ini perlu wajah lurus ke depan');
         await _restartStream();
         return;
       }
-      if (_currentStep == 1 && yaw > -5) {
+      if (_currentStep == 1 && yaw < 5) {
         _showError('Putar kepala sedikit ke kiri');
         await _restartStream();
         return;
       }
-      if (_currentStep == 2 && yaw < 5) {
+      if (_currentStep == 2 && yaw > -5) {
         _showError('Putar kepala sedikit ke kanan');
         await _restartStream();
         return;
@@ -305,7 +317,14 @@ class _FaceRegisterScreenState extends State<FaceRegisterScreen>
     return Stack(
       fit: StackFit.expand,
       children: [
-        CameraPreview(_cam!),
+        FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: 100,
+            height: 100 * _cam!.value.aspectRatio,
+            child: CameraPreview(_cam!),
+          ),
+        ),
 
         // Oval mask
         CustomPaint(

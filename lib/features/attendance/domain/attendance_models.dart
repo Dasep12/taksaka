@@ -6,11 +6,7 @@ import 'dart:math';
 
 enum AttendanceType { clockIn, clockOut }
 
-enum AttendanceStep {
-  locationCheck,
-  faceVerify,
-  result,
-}
+enum AttendanceStep { locationCheck, faceVerify, result }
 
 enum LocationStatus { checking, inRange, outOfRange, error, permissionDenied }
 
@@ -54,7 +50,8 @@ class UserLocation {
     final lat2 = office.latitude * (pi / 180);
     final dLat = (office.latitude - latitude) * (pi / 180);
     final dLon = (office.longitude - longitude) * (pi / 180);
-    final a = sin(dLat / 2) * sin(dLat / 2) +
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
         cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return r * c;
@@ -87,16 +84,16 @@ class FaceEmbedding {
   }
 
   Map<String, dynamic> toJson() => {
-        'userId': userId,
-        'values': values,
-        'capturedAt': capturedAt.toIso8601String(),
-      };
+    'userId': userId,
+    'values': values,
+    'capturedAt': capturedAt.toIso8601String(),
+  };
 
   factory FaceEmbedding.fromJson(Map<String, dynamic> json) => FaceEmbedding(
-        userId: json['userId'] as String,
-        values: List<double>.from(json['values'] as List),
-        capturedAt: DateTime.parse(json['capturedAt'] as String),
-      );
+    userId: json['userId'] as String,
+    values: List<double>.from(json['values'] as List),
+    capturedAt: DateTime.parse(json['capturedAt'] as String),
+  );
 }
 
 // ── Attendance Record ─────────────────────
@@ -129,8 +126,18 @@ class AttendanceRecord {
 
   String get formattedDate {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
     return '${timestamp.day} ${months[timestamp.month - 1]} ${timestamp.year}';
   }
@@ -161,8 +168,8 @@ class AttendanceMockData {
   static const OfficeLocation mainOffice = OfficeLocation(
     name: 'Kantor Pusat',
     address: 'Jl. Jend. Sudirman No.1, Jakarta Pusat',
-    latitude: -6.2088,
-    longitude: 106.8456,
+    latitude: -6.2572863,
+    longitude: 107.0831963,
     radiusMeters: 200,
   );
 

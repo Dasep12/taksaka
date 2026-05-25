@@ -6,10 +6,7 @@ import '../../../../core/constants/app_spacing.dart';
 ///  QUICK MENU GRID
 /// ─────────────────────────────────────────
 class QuickMenuGrid extends StatelessWidget {
-  const QuickMenuGrid({
-    super.key,
-    required this.items,
-  });
+  const QuickMenuGrid({super.key, required this.items});
 
   final List<Map<String, dynamic>> items;
 
@@ -58,18 +55,17 @@ class _QuickMenuItem extends StatelessWidget {
                   color: AppColors.primarySurface,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: Icon(
-                  icon,
-                  size: 22,
-                  color: AppColors.primary,
-                ),
+                child: Icon(icon, size: 22, color: AppColors.primary),
               ),
               if (badge != null)
                 Positioned(
                   top: -4,
                   right: -4,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.accent,
                       borderRadius: BorderRadius.circular(AppRadius.full),

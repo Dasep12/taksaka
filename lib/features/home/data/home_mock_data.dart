@@ -23,24 +23,46 @@ class HomeMockData {
   );
 
   static const List<TeamMember> teamMembers = [
-    TeamMember(id: '1', name: 'Leroy Davis',    position: 'Engineer',   isOnline: true),
-    TeamMember(id: '2', name: 'Tatiana Chen',   position: 'Designer',   isOnline: false),
-    TeamMember(id: '3', name: 'Cheyenne Moore', position: 'Marketing',  isOnline: true),
-    TeamMember(id: '4', name: 'Nolan Douglas',  position: 'Sales',      isOnline: false),
+    TeamMember(
+      id: '1',
+      name: 'Leroy Davis',
+      position: 'Engineer',
+      isOnline: true,
+    ),
+    TeamMember(
+      id: '2',
+      name: 'Tatiana Chen',
+      position: 'Designer',
+      isOnline: false,
+    ),
+    TeamMember(
+      id: '3',
+      name: 'Cheyenne Moore',
+      position: 'Marketing',
+      isOnline: true,
+    ),
+    TeamMember(
+      id: '4',
+      name: 'Nolan Douglas',
+      position: 'Sales',
+      isOnline: false,
+    ),
   ];
 
   static const List<Announcement> announcements = [
     Announcement(
       id: 'a1',
       title: 'Sales Meetings',
-      description: 'Activities to discuss among fellow team members for Q3 targets.',
+      description:
+          'Activities to discuss among fellow team members for Q3 targets.',
       date: 'May 23, 2025',
       category: 'Meeting',
     ),
     Announcement(
       id: 'a2',
       title: 'SOP Updates',
-      description: 'New standard operating procedures will be effective from June 1.',
+      description:
+          'New standard operating procedures will be effective from June 1.',
       date: 'May 22, 2025',
       category: 'Policy',
     ),
@@ -57,9 +79,11 @@ class HomeMockData {
 // Quick menu items configuration
 class QuickMenuConfig {
   static List<Map<String, dynamic>> get items => [
-        {'label': 'Work Schedule', 'icon': Icons.calendar_today_rounded,    'badge': null},
-        {'label': 'Absence History','icon': Icons.history_rounded,           'badge': null},
-        {'label': 'E-Certificate', 'icon': Icons.card_membership_rounded,   'badge': null},
-        {'label': 'Other',         'icon': Icons.apps_rounded,               'badge': null},
-      ];
+    {'label': 'Schedule', 'icon': Icons.calendar_today_rounded, 'badge': null},
+    {'label': 'Timesheet', 'icon': Icons.history_rounded, 'badge': null},
+    {'label': 'E-Slip', 'icon': Icons.card_membership_rounded, 'badge': null},
+    {'label': 'Approval', 'icon': Icons.money, 'badge': null},
+    // {'label': 'Other', 'icon': Icons.apps_rounded, 'badge': null},
+    {'label': 'HR', 'icon': Icons.apps_rounded, 'badge': null},
+  ];
 }

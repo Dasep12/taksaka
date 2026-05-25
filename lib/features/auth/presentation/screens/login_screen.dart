@@ -4,6 +4,7 @@ import '../../../../core/constants/app_spacing.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../domain/auth_models.dart';
+import '../../data/auth_service.dart';
 import '../widgets/auth_brand_header.dart';
 import '../../../home/presentation/screens/home_screen.dart';
 
@@ -40,13 +41,13 @@ class _LoginScreenState extends State<LoginScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _cardSlide = Tween<Offset>(
-      begin: const Offset(0, 0.15),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _cardCtrl,
-      curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic),
-    ));
+    _cardSlide = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _cardCtrl,
+            curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic),
+          ),
+        );
     _cardFade = CurvedAnimation(
       parent: _cardCtrl,
       curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
@@ -71,20 +72,22 @@ class _LoginScreenState extends State<LoginScreen>
 
     setState(() => _isLoading = true);
 
-    // Simulate network delay (replace with real API call)
-    await Future.delayed(const Duration(milliseconds: 1800));
-
-    // Mock auth check
     final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text;
+
+    // Call API Login
+    final result = await AuthService.instance.login(email, password);
 
     if (mounted) {
       setState(() => _isLoading = false);
 
-      if (email == 'demo@hrms.com' && password == 'demo123') {
+      if (result.success) {
         _navigateToHome();
       } else {
-        _showError('Email atau password salah.\nCoba: demo@hrms.com / demo123');
+        _showError(
+          result.message ??
+              'Login gagal. Periksa kembali email dan password Anda.',
+        );
       }
     }
   }
@@ -112,7 +115,9 @@ class _LoginScreenState extends State<LoginScreen>
           children: [
             const Icon(Icons.error_outline, color: Colors.white, size: 18),
             const SizedBox(width: 10),
-            Expanded(child: Text(message, style: const TextStyle(fontSize: 13))),
+            Expanded(
+              child: Text(message, style: const TextStyle(fontSize: 13)),
+            ),
           ],
         ),
         backgroundColor: AppColors.error,
@@ -125,8 +130,8 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _fillDemo() {
-    _emailCtrl.text = 'demo@hrms.com';
-    _passwordCtrl.text = 'demo123';
+    _emailCtrl.text = 'admin@admin.com';
+    _passwordCtrl.text = '123456';
   }
 
   // ── Build ─────────────────────────────────
@@ -146,7 +151,9 @@ class _LoginScreenState extends State<LoginScreen>
               children: [
                 // ── Brand header (top section on primary bg)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.xxxl,
+                  ),
                   child: const AuthBrandHeader(),
                 ),
 
@@ -206,8 +213,9 @@ class _LoginScreenState extends State<LoginScreen>
                                   prefixIcon: Icons.email_outlined,
                                   autofillHints: const [AutofillHints.email],
                                   textInputAction: TextInputAction.next,
-                                  onFieldSubmitted: (_) => FocusScope.of(context)
-                                      .requestFocus(_passwordFocus),
+                                  onFieldSubmitted: (_) => FocusScope.of(
+                                    context,
+                                  ).requestFocus(_passwordFocus),
                                   validator: AuthValidators.validateEmail,
                                 ),
                                 const SizedBox(height: AppSpacing.xl),
@@ -234,8 +242,9 @@ class _LoginScreenState extends State<LoginScreen>
                                   children: [
                                     _RememberMe(
                                       value: _rememberMe,
-                                      onChanged: (v) =>
-                                          setState(() => _rememberMe = v ?? false),
+                                      onChanged: (v) => setState(
+                                        () => _rememberMe = v ?? false,
+                                      ),
                                     ),
                                     GestureDetector(
                                       onTap: () =>
@@ -380,10 +389,7 @@ class _RememberMe extends StatelessWidget {
           const SizedBox(width: 8),
           const Text(
             'Ingat saya',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.grey600,
-            ),
+            style: TextStyle(fontSize: 13, color: AppColors.grey600),
           ),
         ],
       ),
@@ -418,8 +424,11 @@ class _DemoHint extends StatelessWidget {
                 color: AppColors.accent.withOpacity(0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.tips_and_updates_rounded,
-                  size: 14, color: AppColors.accent),
+              child: const Icon(
+                Icons.tips_and_updates_rounded,
+                size: 14,
+                color: AppColors.accent,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -435,17 +444,17 @@ class _DemoHint extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Tap untuk isi otomatis: demo@hrms.com',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.grey600,
-                    ),
+                    'Tap untuk isi otomatis: admin@admin.com',
+                    style: TextStyle(fontSize: 11, color: AppColors.grey600),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded,
-                size: 12, color: AppColors.grey400),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 12,
+              color: AppColors.grey400,
+            ),
           ],
         ),
       ),
@@ -495,7 +504,11 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     await Future.delayed(const Duration(milliseconds: 1500));
-    if (mounted) setState(() { _loading = false; _sent = true; });
+    if (mounted)
+      setState(() {
+        _loading = false;
+        _sent = true;
+      });
   }
 
   @override
@@ -543,7 +556,11 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
             const SizedBox(height: 6),
             const Text(
               'Masukkan email Anda, kami akan kirim\nlink reset password.',
-              style: TextStyle(fontSize: 13, color: AppColors.grey600, height: 1.5),
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.grey600,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 24),
             Form(
@@ -576,8 +593,11 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
                       color: AppColors.success.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.check_circle_rounded,
-                        size: 40, color: AppColors.success),
+                    child: const Icon(
+                      Icons.check_circle_rounded,
+                      size: 40,
+                      color: AppColors.success,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   const Text(

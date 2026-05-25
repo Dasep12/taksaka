@@ -47,8 +47,11 @@ class AttendanceCard extends StatelessWidget {
           // Date row
           Row(
             children: [
-              const Icon(Icons.calendar_today_rounded,
-                  size: 14, color: Colors.white70),
+              const Icon(
+                Icons.calendar_today_rounded,
+                size: 14,
+                color: Colors.white70,
+              ),
               const SizedBox(width: AppSpacing.xs),
               Text(
                 '${schedule.date} (${schedule.timeRange})',
@@ -64,22 +67,37 @@ class AttendanceCard extends StatelessWidget {
 
           // Clock In / Clock Out row
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _ClockButton(
-                  label: 'Clock In',
-                  icon: Icons.login_rounded,
-                  isActive: !schedule.isClockedIn,
-                  onTap: onClockIn,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _ClockButton(
+                      label: schedule.checkInTime != null
+                          ? 'Clock In \n' + schedule.checkInTime!
+                          : 'Clock In \n --:--',
+                      icon: Icons.login_rounded,
+                      isActive: !schedule.isClockedIn,
+                      onTap: onClockIn,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: _ClockButton(
-                  label: 'Clock Out',
-                  icon: Icons.logout_rounded,
-                  isActive: schedule.isClockedIn && !schedule.isClockedOut,
-                  onTap: schedule.isClockedIn ? onClockOut : null,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _ClockButton(
+                      label: schedule.checkOutTime != null
+                          ? 'Clock Out \n' + schedule.checkOutTime!
+                          : 'Clock Out \n --:--',
+                      icon: Icons.logout_rounded,
+                      isActive: schedule.isClockedIn && !schedule.isClockedOut,
+                      onTap: schedule.isClockedIn ? onClockOut : null,
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -126,9 +144,11 @@ class _ClockButton extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon,
-                    size: 16,
-                    color: isActive ? Colors.white : Colors.white38),
+                Icon(
+                  icon,
+                  size: 16,
+                  color: isActive ? Colors.white : Colors.white38,
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   label,
@@ -140,9 +160,11 @@ class _ClockButton extends StatelessWidget {
                 ),
               ],
             ),
-            Icon(Icons.chevron_right_rounded,
-                size: 16,
-                color: isActive ? Colors.white70 : Colors.white24),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 16,
+              color: isActive ? Colors.white70 : Colors.white24,
+            ),
           ],
         ),
       ),

@@ -35,14 +35,22 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   late AnimationController _transCtrl;
   late Animation<double> _transAnim;
 
-  static const _office = AttendanceMockData.mainOffice;
+  OfficeLocation? _verifiedOffice;
+  List<OfficeLocation> _offices = [];
+  bool _isLoadingOffice = true;
 
   @override
   void initState() {
     super.initState();
-    _transCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 380));
-    _transAnim = CurvedAnimation(parent: _transCtrl, curve: Curves.easeOutCubic);
+    _loadOffice();
+    _transCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _transAnim = CurvedAnimation(
+      parent: _transCtrl,
+      curve: Curves.easeOutCubic,
+    );
     _transCtrl.forward();
   }
 
@@ -52,6 +60,21 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     super.dispose();
   }
 
+  Future<void> _loadOffice() async {
+    final offices = await AttendanceService.instance.fetchAbsenceLocations();
+    if (mounted) {
+      setState(() {
+        if (offices.isNotEmpty) {
+          _offices = offices;
+        } else {
+          // Fallback to mock data if API fails or returns empty
+          _offices = [AttendanceMockData.mainOffice];
+        }
+        _isLoadingOffice = false;
+      });
+    }
+  }
+
   void _goToStep(AttendanceStep next) {
     _transCtrl.reverse().then((_) {
       setState(() => _currentStep = next);
@@ -59,20 +82,71 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     });
   }
 
-  void _onLocationVerified(UserLocation loc) {
+  void _onLocationVerified(UserLocation loc, OfficeLocation nearestOffice) {
     _verifiedLocation = loc;
+    _verifiedOffice = nearestOffice;
     _goToStep(AttendanceStep.faceVerify);
   }
 
   Future<void> _onFaceVerified(FaceVerifyResult result) async {
-    final record = await AttendanceService.instance.saveAttendance(
-      type: widget.type,
-      userLocation: _verifiedLocation!,
-      office: _office,
-      faceConfidence: result.confidence ?? 0.0,
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
     );
-    setState(() => _record = record);
-    _goToStep(AttendanceStep.result);
+
+    try {
+      final record = await AttendanceService.instance.saveAttendance(
+        type: widget.type,
+        userLocation: _verifiedLocation!,
+        office: _verifiedOffice!,
+        faceConfidence: result.confidence ?? 0.0,
+      );
+      if (mounted) {
+        Navigator.pop(context); // Pop loading spinner
+        setState(() => _record = record);
+        _goToStep(AttendanceStep.result);
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Pop loading spinner
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red),
+                SizedBox(width: 8),
+                Text(
+                  'Gagal Absensi',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              e.toString().replaceAll('Exception: ', ''),
+              style: const TextStyle(fontSize: 14),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Tutup',
+                  style: TextStyle(color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   void _onDone() => Navigator.pop(context, _record);
@@ -86,13 +160,19 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       backgroundColor: AppColors.scaffoldBg,
       body: Column(
         children: [
-          _AttendanceHeader(title: _title,
-              canBack: _currentStep != AttendanceStep.result),
+          _AttendanceHeader(
+            title: _title,
+            canBack: _currentStep != AttendanceStep.result,
+          ),
 
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.lg),
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+              ),
               child: Column(
                 children: [
                   if (_currentStep != AttendanceStep.result)
@@ -109,7 +189,14 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                         child: child,
                       ),
                     ),
-                    child: _buildStep(),
+                    child: _isLoadingOffice
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(40),
+                              child: CircularProgressIndicator(color: AppColors.primary),
+                            ),
+                          )
+                        : _buildStep(),
                   ),
                 ],
               ),
@@ -123,25 +210,25 @@ class _AttendanceScreenState extends State<AttendanceScreen>
   Widget _buildStep() {
     return switch (_currentStep) {
       AttendanceStep.locationCheck => SizedBox(
-          height: 520,
-          child: LocationCheckStep(
-            office: _office,
-            onLocationVerified: _onLocationVerified,
-          ),
+        height: 520,
+        child: LocationCheckStep(
+          offices: _offices,
+          onLocationVerified: _onLocationVerified,
         ),
+      ),
       AttendanceStep.faceVerify => SizedBox(
-          height: 520,
-          child: FaceVerifyStep(
-            attendanceType: widget.type,
-            userId: widget.userId,
-            onVerified: _onFaceVerified,
-            onFailed: (_) {},
-          ),
+        height: 520,
+        child: FaceVerifyStep(
+          attendanceType: widget.type,
+          userId: widget.userId,
+          onVerified: _onFaceVerified,
+          onFailed: (_) {},
         ),
+      ),
       AttendanceStep.result => AttendanceResultStep(
-          record: _record!,
-          onDone: _onDone,
-        ),
+        record: _record!,
+        onDone: _onDone,
+      ),
     };
   }
 }
@@ -157,24 +244,41 @@ class _AttendanceHeader extends StatelessWidget {
     return Container(
       color: AppColors.primary,
       padding: EdgeInsets.fromLTRB(16, top + 12, 16, 16),
-      child: Row(children: [
-        if (canBack)
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.15),
-                  shape: BoxShape.circle),
-              child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+      child: Row(
+        children: [
+          if (canBack)
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            )
+          else
+            const SizedBox(width: 36),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
-          )
-        else
-          const SizedBox(width: 36),
-        const SizedBox(width: 12),
-        Expanded(child: Text(title, style: const TextStyle(fontSize: 18,
-            fontWeight: FontWeight.w700, color: Colors.white))),
-        _LiveClock(),
-      ]),
+          ),
+          _LiveClock(),
+        ],
+      ),
     );
   }
 }
@@ -206,10 +310,18 @@ class _LiveClockState extends State<_LiveClock> {
     final s = _now.second.toString().padLeft(2, '0');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(20)),
-      child: Text('$h:$m:$s', style: const TextStyle(fontSize: 13,
-          fontWeight: FontWeight.w700, color: Colors.white)),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '$h:$m:$s',
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 }

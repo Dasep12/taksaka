@@ -14,6 +14,8 @@ import '../../../attendance/domain/attendance_models.dart';
 import '../../../attendance/presentation/screens/attendance_screen.dart';
 import '../../../auth/presentation/screens/face_register_screen.dart';
 import '../../../attendance/data/face_service.dart';
+import '../../../auth/data/auth_service.dart';
+import '../../data/home_service.dart';
 
 /// ─────────────────────────────────────────
 ///  HOME SCREEN
@@ -28,9 +30,46 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   AttendanceSchedule _schedule = HomeMockData.todaySchedule;
+  List<Announcement> _announcements = HomeMockData.announcements;
 
-  static const _userId = 'demo_user';
-  static const _userName = 'Savannah Nguyen';
+  String _userId = 'demo_user';
+  String _userName = 'User';
+  String? _userAvatarUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    var employee = await AuthService.instance.fetchMe();
+    employee ??= await AuthService.instance.getEmployee();
+    final user = await AuthService.instance.getUser();
+    final schedule = await HomeService.instance.getTodaySchedule();
+    final announcements = await HomeService.instance.getAnnouncements();
+
+    if (mounted) {
+      setState(() {
+        if (employee != null) {
+          _userId = employee.employeeId.toString();
+          _userName = employee.employeeName;
+          _userAvatarUrl = employee.photoPath;
+        } else if (user != null) {
+          _userId = user.id.toString();
+          _userName = user.name;
+        }
+
+        if (schedule != null) {
+          _schedule = schedule;
+        }
+
+        if (announcements.isNotEmpty) {
+          _announcements = announcements;
+        }
+      });
+    }
+  }
 
   Future<void> _handleClockIn() async {
     final registered = await FaceService.instance.hasRegisteredFace(_userId);
@@ -42,10 +81,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final result = await Navigator.push<AttendanceRecord>(
       context,
       MaterialPageRoute(
-        builder: (_) => const AttendanceScreen(
-          type: AttendanceType.clockIn,
-          userId: _userId,
-        ),
+        builder: (_) =>
+            AttendanceScreen(type: AttendanceType.clockIn, userId: _userId),
       ),
     );
     if (result != null && mounted) {
@@ -73,10 +110,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final result = await Navigator.push<AttendanceRecord>(
       context,
       MaterialPageRoute(
-        builder: (_) => const AttendanceScreen(
-          type: AttendanceType.clockOut,
-          userId: _userId,
-        ),
+        builder: (_) =>
+            AttendanceScreen(type: AttendanceType.clockOut, userId: _userId),
       ),
     );
     if (result != null && mounted) {
@@ -99,12 +134,20 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(children: [
-          Icon(Icons.face_retouching_natural, color: AppColors.primary),
-          SizedBox(width: 10),
-          Text('Registrasi Wajah', style: TextStyle(fontSize: 16,
-              fontWeight: FontWeight.w700, color: AppColors.primary)),
-        ]),
+        title: const Row(
+          children: [
+            Icon(Icons.face_retouching_natural, color: AppColors.primary),
+            SizedBox(width: 10),
+            Text(
+              'Registrasi Wajah',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
         content: const Text(
           'Anda belum meregistrasi wajah untuk absensi.\nRegistrasi sekarang untuk melanjutkan.',
           style: TextStyle(fontSize: 13, height: 1.5),
@@ -112,20 +155,20 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal', style: TextStyle(color: AppColors.grey600)),
+            child: const Text(
+              'Batal',
+              style: TextStyle(color: AppColors.grey600),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
-
               Navigator.pop(context);
 
               final ok = await Navigator.push<bool>(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => FaceRegisterScreen(
-                    userId: _userId,
-                    userName: _userName,
-                  ),
+                  builder: (_) =>
+                      FaceRegisterScreen(userId: _userId, userName: _userName),
                 ),
               );
 
@@ -134,7 +177,6 @@ class _HomeScreenState extends State<HomeScreen> {
               if (ok == true) {
                 // success action
               }
-
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
@@ -167,7 +209,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = HomeMockData.currentUser;
+    final user = UserProfile(
+      name: _userName,
+      position: HomeMockData.currentUser.position,
+      avatarUrl: _userAvatarUrl,
+      notificationCount: HomeMockData.currentUser.notificationCount,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
@@ -179,59 +226,67 @@ class _HomeScreenState extends State<HomeScreen> {
           // ── Scrollable body (white sheet) ──
           Expanded(
             child: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.scaffoldBg,
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Attendance card
-                    AttendanceCard(
-                      schedule: _schedule,
-                      onClockIn: _handleClockIn,
-                      onClockOut: _handleClockOut,
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-
-                    // Quick Menu
-                    QuickMenuGrid(
-                      items: QuickMenuConfig.items,
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-
-                    // Your Member
-                    SectionHeader(
-                      title: 'Your member',
-                      onViewAll: () {},
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    TeamMemberRow(
-                      members: HomeMockData.teamMembers,
-                      onAddNew: () {},
-                      onMemberTap: (m) => _showSnack('${m.name} tapped'),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-
-                    // Announcements
-                    SectionHeader(
-                      title: 'Announcement',
-                      onViewAll: () {},
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    ...HomeMockData.announcements.map(
-                      (a) => Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                        child: AnnouncementCard(
-                          announcement: a,
-                          onTap: () => _showSnack(a.title),
-                        ),
+              decoration: const BoxDecoration(color: AppColors.scaffoldBg),
+              child: RefreshIndicator(
+                onRefresh: _loadUserData,
+                color: AppColors.primary,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Attendance card
+                      AttendanceCard(
+                        schedule: _schedule,
+                        onClockIn: _handleClockIn,
+                        onClockOut: _handleClockOut,
                       ),
-                    ),
+                      const SizedBox(height: AppSpacing.xl),
 
-                    const SizedBox(height: AppSpacing.xxxl),
-                  ],
+                      // Quick Menu
+                      QuickMenuGrid(items: QuickMenuConfig.items),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // Your Member
+                      SectionHeader(title: 'Your member', onViewAll: () {}),
+                      const SizedBox(height: AppSpacing.md),
+                      TeamMemberRow(
+                        members: HomeMockData.teamMembers,
+                        onAddNew: () {},
+                        onMemberTap: (m) => _showSnack('${m.name} tapped'),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // Announcements
+                      SectionHeader(title: 'Announcement', onViewAll: () {}),
+                      const SizedBox(height: AppSpacing.md),
+                      if (_announcements.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(AppSpacing.lg),
+                            child: Text(
+                              'No announcements yet.',
+                              style: TextStyle(color: AppColors.grey500),
+                            ),
+                          ),
+                        )
+                      else
+                        ..._announcements.map(
+                          (a) => Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.md,
+                            ),
+                            child: AnnouncementCard(
+                              announcement: a,
+                              onTap: () => _showSnack(a.title),
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(height: AppSpacing.xxxl),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -259,7 +314,11 @@ class _HomeHeader extends StatelessWidget {
     return Container(
       color: AppColors.primary,
       padding: EdgeInsets.fromLTRB(
-          AppSpacing.lg, top + AppSpacing.lg, AppSpacing.lg, AppSpacing.lg),
+        AppSpacing.lg,
+        top + AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      ),
       child: Column(
         children: [
           // Top row: avatar + greeting + bell
@@ -267,6 +326,7 @@ class _HomeHeader extends StatelessWidget {
             children: [
               AppAvatar(
                 name: user.name,
+                imageUrl: user.avatarUrl,
                 size: AppSizes.avatarMd,
                 borderColor: Colors.white,
                 borderWidth: 2,
@@ -307,11 +367,7 @@ class _HomeHeader extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
 
           // Search bar
-          AppSearchBar(
-            hint: 'Search',
-            readOnly: true,
-            onTap: () {},
-          ),
+          AppSearchBar(hint: 'Search', readOnly: true, onTap: () {}),
           const SizedBox(height: AppSpacing.sm),
         ],
       ),
@@ -372,10 +428,7 @@ class _NotificationBell extends StatelessWidget {
 
 /// ─── Bottom Navigation ───────────────────
 class _HomeBottomNav extends StatelessWidget {
-  const _HomeBottomNav({
-    required this.selectedIndex,
-    required this.onTap,
-  });
+  const _HomeBottomNav({required this.selectedIndex, required this.onTap});
   final int selectedIndex;
   final ValueChanged<int> onTap;
 
@@ -398,11 +451,42 @@ class _HomeBottomNav extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _NavItem(icon: Icons.home_rounded,           label: 'Home',    index: 0, selected: selectedIndex, onTap: onTap),
-              _NavItem(icon: Icons.inbox_rounded,          label: 'Request', index: 1, selected: selectedIndex, onTap: onTap),
-              _NavItem(icon: Icons.qr_code_scanner_rounded,label: '',        index: 2, selected: selectedIndex, onTap: onTap, isCta: true),
-              _NavItem(icon: Icons.chat_bubble_outline_rounded, label: 'Message', index: 3, selected: selectedIndex, onTap: onTap),
-              _NavItem(icon: Icons.person_outline_rounded, label: 'Profile', index: 4, selected: selectedIndex, onTap: onTap),
+              _NavItem(
+                icon: Icons.home_rounded,
+                label: 'Home',
+                index: 0,
+                selected: selectedIndex,
+                onTap: onTap,
+              ),
+              _NavItem(
+                icon: Icons.inbox_rounded,
+                label: 'Request',
+                index: 1,
+                selected: selectedIndex,
+                onTap: onTap,
+              ),
+              _NavItem(
+                icon: Icons.qr_code_scanner_rounded,
+                label: '',
+                index: 2,
+                selected: selectedIndex,
+                onTap: onTap,
+                isCta: true,
+              ),
+              _NavItem(
+                icon: Icons.chat_bubble_outline_rounded,
+                label: 'Message',
+                index: 3,
+                selected: selectedIndex,
+                onTap: onTap,
+              ),
+              _NavItem(
+                icon: Icons.person_outline_rounded,
+                label: 'Profile',
+                index: 4,
+                selected: selectedIndex,
+                onTap: onTap,
+              ),
             ],
           ),
         ),
