@@ -163,6 +163,11 @@ class _FaceRegisterScreenState extends State<FaceRegisterScreen>
         await _restartStream();
         return;
       }
+      if (face.landmarks.isEmpty) {
+        _showError('Wajah tidak terdeteksi dengan jelas (landmark tidak ditemukan)');
+        await _restartStream();
+        return;
+      }
       if (_currentStep == 0 && yaw.abs() > 20) {
         _showError('Langkah ini perlu wajah lurus ke depan');
         await _restartStream();

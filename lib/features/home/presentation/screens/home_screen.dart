@@ -16,6 +16,8 @@ import '../../../auth/presentation/screens/face_register_screen.dart';
 import '../../../attendance/data/face_service.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../data/home_service.dart';
+import '../../../request/presentation/screens/request_dashboard_screen.dart';
+import '../../../profile/presentation/screens/profile_screen.dart';
 
 /// ─────────────────────────────────────────
 ///  HOME SCREEN
@@ -218,8 +220,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
-      body: Column(
-        children: [
+      body: _selectedIndex == 1
+          ? const RequestDashboardScreen()
+          : _selectedIndex == 4 
+              ? const ProfileScreen()
+              : Column(
+                  children: [
           // ── Header (primary color bg) ──
           _HomeHeader(user: user),
 

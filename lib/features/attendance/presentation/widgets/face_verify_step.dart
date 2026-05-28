@@ -224,6 +224,12 @@ class _FaceVerifyStepState extends State<FaceVerifyStep>
         return;
       }
 
+      // pastikan landmark ada (mencegah false positive dari background)
+      if (face.landmarks.isEmpty) {
+        _isProcessingFrame = false;
+        return;
+      }
+
       // mata tertutup (hanya validasi jika nilainya tersedia dari ML Kit)
       if (face.leftEyeOpenProbability != null && face.leftEyeOpenProbability! < 0.3) {
         _isProcessingFrame = false;

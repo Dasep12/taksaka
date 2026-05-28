@@ -123,20 +123,35 @@ class _LocationCheckStepState extends State<LocationCheckStep> {
   void _updateNearestOffice(UserLocation loc) {
     if (widget.offices.isEmpty) return;
     
-    double minDist = double.infinity;
-    OfficeLocation? nearest;
+    double minInRangeDist = double.infinity;
+    OfficeLocation? nearestInRange;
+    
+    double minOutRangeDist = double.infinity;
+    OfficeLocation? nearestOutRange;
 
     for (final office in widget.offices) {
       final dist = LocationService.instance.getDistance(loc, office);
-      if (dist < minDist) {
-        minDist = dist;
-        nearest = office;
+      final inRange = dist <= office.radiusMeters;
+
+      if (inRange) {
+        if (dist < minInRangeDist) {
+          minInRangeDist = dist;
+          nearestInRange = office;
+        }
+      } else {
+        if (dist < minOutRangeDist) {
+          minOutRangeDist = dist;
+          nearestOutRange = office;
+        }
       }
     }
 
-    if (nearest != null) {
-      _nearestOffice = nearest;
-      _distanceMeters = minDist;
+    if (nearestInRange != null) {
+      _nearestOffice = nearestInRange;
+      _distanceMeters = minInRangeDist;
+    } else if (nearestOutRange != null) {
+      _nearestOffice = nearestOutRange;
+      _distanceMeters = minOutRangeDist;
     }
   }
 

@@ -25,11 +25,12 @@ class FaceService {
 
   static const _prefKey = 'hrms_face_embedding';
 
-  // Threshold similarity: >= 0.75 = match
-  static const double matchThreshold = 0.75;
+  // Threshold similarity: >= 0.88 = match (diperketat dari 0.75)
+  static const double matchThreshold = 0.88;
 
   late final FaceDetector _detector = FaceDetector(
     options: FaceDetectorOptions(
+      enableLandmarks: true, // Wajib diaktifkan untuk mengambil posisi landmark
       enableClassification: true, // senyum, mata terbuka
       enableTracking: true,
       performanceMode: FaceDetectorMode.accurate,
@@ -116,14 +117,17 @@ class FaceService {
     final bb = face.boundingBox;
 
     // Normalisasi posisi landmark relatif terhadap bounding box wajah
+    // Diubah menjadi zero-centered [-1, 1] agar cosine similarity lebih diskriminatif
     for (final type in landmarks) {
       final lm = face.landmarks[type];
       if (lm != null) {
-        features.add((lm.position.x - bb.left) / bb.width);
-        features.add((lm.position.y - bb.top) / bb.height);
+        final normX = (lm.position.x - bb.left) / bb.width;
+        final normY = (lm.position.y - bb.top) / bb.height;
+        features.add(normX * 2 - 1);
+        features.add(normY * 2 - 1);
       } else {
-        features.add(0.5);
-        features.add(0.5);
+        features.add(0.0); // 0.0 adalah titik tengah (mean) di koordinat [-1, 1]
+        features.add(0.0);
       }
     }
 

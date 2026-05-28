@@ -12,9 +12,9 @@ class AuthService {
   // Jika dijalankan di emulator Android, localhost adalah 10.0.2.2
   String get baseUrl {
     if (Platform.isAndroid) {
-      return 'http://192.168.101.71:8084/api/v1';
+      return 'http://192.168.10.212:8084/api/v1';
     }
-    return 'http://192.168.101.71:8084/api/v1';
+    return 'http://192.168.10.212:8084/api/v1';
   }
 
   static const String _tokenKey = 'auth_token';
@@ -118,7 +118,8 @@ class AuthService {
 
   String? getFullPhotoUrl(String? relativePath) {
     if (relativePath == null || relativePath.isEmpty) return null;
-    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    if (relativePath.startsWith('http://') ||
+        relativePath.startsWith('https://')) {
       return relativePath;
     }
     // Remove '/api/v1' from the baseUrl to get the host url

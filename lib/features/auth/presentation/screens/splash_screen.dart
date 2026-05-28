@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/auth_service.dart';
+import '../../../home/presentation/screens/home_screen.dart';
 import 'login_screen.dart';
 
 /// ─────────────────────────────────────────
@@ -32,22 +34,47 @@ class _SplashScreenState extends State<SplashScreen>
 
     _ctrl.forward();
 
-    // Navigate to login after delay
-    Future.delayed(const Duration(milliseconds: 2400), () {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (_, anim, __) => const LoginScreen(),
-            transitionsBuilder: (_, anim, __, child) => FadeTransition(
-              opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
-              child: child,
-            ),
-            transitionDuration: const Duration(milliseconds: 500),
-          ),
-        );
+    _checkSession();
+  }
+
+  Future<void> _checkSession() async {
+    final startTime = DateTime.now();
+
+    // Periksa token
+    final token = await AuthService.instance.getToken();
+    bool isLoggedIn = false;
+    
+    if (token != null) {
+      // Opsional: Validasi token ke server dengan fetchMe()
+      // Jika berhasil berarti token masih valid
+      final employee = await AuthService.instance.fetchMe();
+      if (employee != null) {
+        isLoggedIn = true;
+      } else {
+        // Token tidak valid atau expired
+        await AuthService.instance.logout();
       }
-    });
+    }
+
+    // Pastikan splash screen minimal tampil 2.4 detik agar animasinya selesai
+    final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+    if (elapsed < 2400) {
+      await Future.delayed(Duration(milliseconds: 2400 - elapsed));
+    }
+
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, anim, __) => isLoggedIn ? const HomeScreen() : const LoginScreen(),
+          transitionsBuilder: (_, anim, __, child) => FadeTransition(
+            opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+            child: child,
+          ),
+          transitionDuration: const Duration(milliseconds: 500),
+        ),
+      );
+    }
   }
 
   @override
