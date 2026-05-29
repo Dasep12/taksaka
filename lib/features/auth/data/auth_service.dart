@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -23,27 +24,48 @@ class AuthService {
 
   Future<AuthResult> login(String email, String password) async {
     try {
-      // Sesuai dengan spesifikasi snippet user, request dikirim via POST.
-      // Mengirimkan lewat query parameter (seperti yang dicontohkan) dan body JSON sebagai cadangan.
-      final url = Uri.parse('$baseUrl/login?email=$email&password=$password');
+      // ✅ Hanya kirim via JSON body — tidak ada query string
+      final url = Uri.parse('$baseUrl/login');
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({'email': email, 'password': password}),
-      );
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw Exception(
+              'Koneksi timeout. Periksa jaringan atau alamat server.',
+            ),
+          );
+
+      // Debug: print response untuk troubleshooting
+      print('[LOGIN] status=${response.statusCode} body=${response.body}');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final data = jsonDecode(response.body);
-        final result = AuthResult.fromJson(data);
+        try {
+          final data = jsonDecode(response.body);
+          final result = AuthResult.fromJson(data);
 
-        if (result.success && result.token != null) {
-          await saveSession(result);
+          if (result.success && result.token != null) {
+            await saveSession(result);
+          } else if (!result.success) {
+            // API kembalikan success=false dengan status 200
+            return AuthResult.failure(
+              result.message ?? 'Login ditolak oleh server.',
+            );
+          }
+          return result;
+        } catch (parseError) {
+          print('[LOGIN] Parse error: $parseError');
+          return AuthResult.failure(
+            'Format response server tidak dikenali. Hubungi administrator.',
+          );
         }
-        return result;
       } else {
         try {
           final data = jsonDecode(response.body);
@@ -57,6 +79,12 @@ class AuthService {
         }
       }
     } catch (e) {
+      print('[LOGIN] Error: $e');
+      if (e.toString().contains('timeout')) {
+        return AuthResult.failure(
+          'Koneksi timeout. Periksa jaringan atau alamat server.',
+        );
+      }
       return AuthResult.failure('Koneksi bermasalah: $e');
     }
   }
@@ -133,13 +161,15 @@ class AuthService {
       if (token == null) return null;
 
       final url = Uri.parse('$baseUrl/me');
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
+      final response = await http
+          .get(
+            url,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw Exception('timeout'));
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);

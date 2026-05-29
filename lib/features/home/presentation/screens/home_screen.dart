@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
-import '../../../../shared/widgets/app_search_bar.dart';
 import '../../../../shared/widgets/app_avatar.dart';
 import '../../../../shared/widgets/section_header.dart';
 import '../../data/home_mock_data.dart';
@@ -18,6 +17,12 @@ import '../../../auth/data/auth_service.dart';
 import '../../data/home_service.dart';
 import '../../../request/presentation/screens/request_dashboard_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
+import '../../../attendance/presentation/screens/attendance_history_screen.dart';
+import '../../../schedule/presentation/screens/schedule_screen.dart';
+import '../../../request/presentation/screens/proposed_screen.dart';
+import '../../../eslip/presentation/screens/eslip_screen.dart';
+import 'announcement_detail_screen.dart';
+import '../../../approval/presentation/screens/approval_screen.dart';
 
 /// ─────────────────────────────────────────
 ///  HOME SCREEN
@@ -131,6 +136,57 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Buka bottom sheet pilihan absensi
+  void _openAttendanceSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AttendanceActionSheet(
+        onClockIn: () {
+          Navigator.pop(context);
+          _handleClockIn();
+        },
+        onClockOut: () {
+          Navigator.pop(context);
+          _handleClockOut();
+        },
+        onHistory: () {
+          Navigator.pop(context);
+          _handleHistory();
+        },
+      ),
+    );
+  }
+
+  /// Navigasi ke riwayat absensi
+  void _handleHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AttendanceHistoryScreen()),
+    );
+  }
+
+  void _handleSchedule() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ScheduleScreen()),
+    );
+  }
+
+  void _handleEslip() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EslipScreen()),
+    );
+  }
+
+  void _handleApproval() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ApprovalScreen()),
+    );
+  }
+
   Future<bool?> _promptFaceRegister() async {
     return showDialog<bool>(
       context: context,
@@ -222,88 +278,154 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppColors.scaffoldBg,
       body: _selectedIndex == 1
           ? const RequestDashboardScreen()
-          : _selectedIndex == 4 
-              ? const ProfileScreen()
-              : Column(
-                  children: [
-          // ── Header (primary color bg) ──
-          _HomeHeader(user: user),
+          : _selectedIndex == 3
+          ? const ProposedScreen()
+          : _selectedIndex == 4
+          ? const ProfileScreen()
+          : Column(
+              children: [
+                // ── Header (primary color bg) ──
+                _HomeHeader(user: user),
 
-          // ── Scrollable body (white sheet) ──
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(color: AppColors.scaffoldBg),
-              child: RefreshIndicator(
-                onRefresh: _loadUserData,
-                color: AppColors.primary,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Attendance card
-                      AttendanceCard(
-                        schedule: _schedule,
-                        onClockIn: _handleClockIn,
-                        onClockOut: _handleClockOut,
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      // Quick Menu
-                      QuickMenuGrid(items: QuickMenuConfig.items),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      // Your Member
-                      SectionHeader(title: 'Your member', onViewAll: () {}),
-                      const SizedBox(height: AppSpacing.md),
-                      TeamMemberRow(
-                        members: HomeMockData.teamMembers,
-                        onAddNew: () {},
-                        onMemberTap: (m) => _showSnack('${m.name} tapped'),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      // Announcements
-                      SectionHeader(title: 'Announcement', onViewAll: () {}),
-                      const SizedBox(height: AppSpacing.md),
-                      if (_announcements.isEmpty)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(AppSpacing.lg),
-                            child: Text(
-                              'No announcements yet.',
-                              style: TextStyle(color: AppColors.grey500),
+                // ── Scrollable body (white sheet) ──
+                Expanded(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: AppColors.scaffoldBg,
+                    ),
+                    child: RefreshIndicator(
+                      onRefresh: _loadUserData,
+                      color: AppColors.primary,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Attendance card
+                            AttendanceCard(
+                              schedule: _schedule,
+                              onClockIn: _handleClockIn,
+                              onClockOut: _handleClockOut,
                             ),
-                          ),
-                        )
-                      else
-                        ..._announcements.map(
-                          (a) => Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: AppSpacing.md,
+                            const SizedBox(height: AppSpacing.xl),
+
+                            // Quick Menu
+                            QuickMenuGrid(
+                              items: [
+                                {
+                                  'label': 'Schedule',
+                                  'icon': Icons.calendar_today_rounded,
+                                  'badge': null,
+                                  'onTap': _handleSchedule,
+                                },
+                                {
+                                  'label': 'History',
+                                  'icon': Icons.history_rounded,
+                                  'badge': null,
+                                  'onTap': _handleHistory,
+                                },
+                                {
+                                  'label': 'E-Slip',
+                                  'icon': Icons.card_membership_rounded,
+                                  'badge': null,
+                                  'onTap': _handleEslip,
+                                },
+                                {
+                                  'label': 'Approval',
+                                  'icon': Icons.check_circle_outline_rounded,
+                                  'badge': '99+',
+                                  'onTap': _handleApproval,
+                                },
+                                {
+                                  'label': 'HR',
+                                  'icon': Icons.apps_rounded,
+                                  'badge': null,
+                                  'onTap': null,
+                                },
+                                {
+                                  'label': 'Loan',
+                                  'icon': Icons.money_rounded,
+                                  'badge': null,
+                                  'onTap': null,
+                                },
+                              ],
                             ),
-                            child: AnnouncementCard(
-                              announcement: a,
-                              onTap: () => _showSnack(a.title),
+                            const SizedBox(height: AppSpacing.xl),
+
+                            // Your Member
+                            SectionHeader(
+                              title: 'Your member',
+                              onViewAll: () {},
                             ),
-                          ),
+                            const SizedBox(height: AppSpacing.md),
+                            TeamMemberRow(
+                              members: HomeMockData.teamMembers,
+                              onAddNew: () {},
+                              onMemberTap: (m) =>
+                                  _showSnack('${m.name} tapped'),
+                            ),
+                            const SizedBox(height: AppSpacing.xl),
+
+                            // Announcements
+                            SectionHeader(
+                              title: 'Announcement',
+                              onViewAll: () {},
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            if (_announcements.isEmpty)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(AppSpacing.lg),
+                                  child: Text(
+                                    'No announcements yet.',
+                                    style: TextStyle(color: AppColors.grey500),
+                                  ),
+                                ),
+                              )
+                            else
+                              ..._announcements.map(
+                                (a) => Padding(
+                                  padding: const EdgeInsets.only(
+                                    bottom: AppSpacing.md,
+                                  ),
+                                  child: AnnouncementCard(
+                                    announcement: a,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              AnnouncementDetailScreen(
+                                                announcement: a,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+
+                            const SizedBox(height: AppSpacing.xxxl),
+                          ],
                         ),
-
-                      const SizedBox(height: AppSpacing.xxxl),
-                    ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ),
-        ],
-      ),
 
       // ── Bottom Navigation ──
       bottomNavigationBar: _HomeBottomNav(
         selectedIndex: _selectedIndex,
-        onTap: (i) => setState(() => _selectedIndex = i),
+        onTap: (i) {
+          if (i == 2) {
+            _openAttendanceSheet();
+          } else {
+            setState(() => _selectedIndex = i);
+          }
+        },
       ),
     );
   }
@@ -366,68 +488,11 @@ class _HomeHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              // Notification bell
-              _NotificationBell(count: user.notificationCount),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Search bar
-          AppSearchBar(hint: 'Search', readOnly: true, onTap: () {}),
           const SizedBox(height: AppSpacing.sm),
         ],
       ),
-    );
-  }
-}
-
-class _NotificationBell extends StatelessWidget {
-  const _NotificationBell({required this.count});
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.notifications_outlined,
-            color: Colors.white,
-            size: 20,
-          ),
-        ),
-        if (count > 0)
-          Positioned(
-            top: -2,
-            right: -2,
-            child: Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                color: AppColors.accent,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 1.5),
-              ),
-              child: Center(
-                child: Text(
-                  '$count',
-                  style: const TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }
@@ -480,8 +545,8 @@ class _HomeBottomNav extends StatelessWidget {
                 isCta: true,
               ),
               _NavItem(
-                icon: Icons.chat_bubble_outline_rounded,
-                label: 'Message',
+                icon: Icons.assignment_rounded,
+                label: 'Proposed',
                 index: 3,
                 selected: selectedIndex,
                 onTap: onTap,
@@ -567,6 +632,194 @@ class _NavItem extends StatelessWidget {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ─── Attendance Action Sheet ──────────────
+class _AttendanceActionSheet extends StatelessWidget {
+  const _AttendanceActionSheet({
+    required this.onClockIn,
+    required this.onClockOut,
+    required this.onHistory,
+  });
+
+  final VoidCallback onClockIn;
+  final VoidCallback onClockOut;
+  final VoidCallback onHistory;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.grey200,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Title
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.fingerprint_rounded,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+                SizedBox(width: 10),
+                Text(
+                  'Absensi',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.grey900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Action buttons
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              children: [
+                _ActionTile(
+                  icon: Icons.login_rounded,
+                  label: 'Clock In',
+                  subtitle: 'Catat waktu masuk kerja',
+                  color: AppColors.success,
+                  onTap: onClockIn,
+                ),
+                const SizedBox(height: 10),
+                _ActionTile(
+                  icon: Icons.logout_rounded,
+                  label: 'Clock Out',
+                  subtitle: 'Catat waktu selesai kerja',
+                  color: AppColors.error,
+                  onTap: onClockOut,
+                ),
+                const SizedBox(height: 10),
+                _ActionTile(
+                  icon: Icons.history_rounded,
+                  label: 'Riwayat Absensi',
+                  subtitle: 'Lihat rekap kehadiran bulanan',
+                  color: AppColors.primary,
+                  onTap: onHistory,
+                ),
+              ],
+            ),
+          ),
+
+          // Cancel
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.grey100,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Center(
+                child: Text(
+                  'Batal',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.grey600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.15)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.grey500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: color),
           ],
         ),
       ),

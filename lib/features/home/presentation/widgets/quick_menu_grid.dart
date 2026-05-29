@@ -12,16 +12,26 @@ class QuickMenuGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: items.map((item) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 16,
+        mainAxisExtent: 88,
+      ),
+      itemCount: items.length,
+      itemBuilder: (ctx, index) {
+        final item = items[index];
         return _QuickMenuItem(
           label: item['label'] as String,
           icon: item['icon'] as IconData,
           badge: item['badge'] as String?,
           onTap: item['onTap'] as VoidCallback?,
         );
-      }).toList(),
+      },
     );
   }
 }

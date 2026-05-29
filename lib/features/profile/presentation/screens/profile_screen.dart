@@ -95,8 +95,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     children: [
                       _buildInfoCard(),
-                      const SizedBox(height: AppSpacing.xxxl),
+                      const SizedBox(height: AppSpacing.xl),
+                      _buildSectionTitle('Menu'),
+                      const SizedBox(height: AppSpacing.sm),
+                      _buildMenuCard([
+                        _MenuItem(
+                          icon: Icons.receipt_long_rounded,
+                          color: AppColors.primary,
+                          title: 'Pengajuan Saya',
+                          subtitle: 'Riwayat semua pengajuan',
+                          onTap: () => _showComingSoon('Pengajuan Saya'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.history_rounded,
+                          color: const Color(0xFF8B5CF6),
+                          title: 'Riwayat Absensi',
+                          subtitle: 'Rekap kehadiran Anda',
+                          onTap: () => _showComingSoon('Riwayat Absensi'),
+                        ),
+                      ]),
+                      const SizedBox(height: AppSpacing.md),
+                      _buildSectionTitle('Lainnya'),
+                      const SizedBox(height: AppSpacing.sm),
+                      _buildMenuCard([
+                        _MenuItem(
+                          icon: Icons.settings_outlined,
+                          color: AppColors.grey600,
+                          title: 'Pengaturan',
+                          subtitle: 'Notifikasi & preferensi',
+                          onTap: () => _showComingSoon('Pengaturan'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.help_outline_rounded,
+                          color: AppColors.info,
+                          title: 'Bantuan',
+                          subtitle: 'FAQ & hubungi support',
+                          onTap: () => _showComingSoon('Bantuan'),
+                        ),
+                      ]),
+                      const SizedBox(height: AppSpacing.xl),
                       _buildLogoutButton(),
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
@@ -224,6 +263,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature belum tersedia.'),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: AppColors.grey600,
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildMenuCard(List<_MenuItem> items) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < items.length; i++) ...[
+            _buildMenuRow(items[i]),
+            if (i < items.length - 1)
+              const Divider(height: 1, thickness: 1, color: AppColors.grey200),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuRow(_MenuItem item) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: item.onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(item.icon, color: item.color, size: 20),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.grey900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.subtitle,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.grey600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.grey400, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLogoutButton() {
     return ElevatedButton(
       onPressed: _handleLogout,
@@ -253,4 +391,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+}
+
+/// ─── Helper Data Class ───────────────────
+class _MenuItem {
+  const _MenuItem({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
 }

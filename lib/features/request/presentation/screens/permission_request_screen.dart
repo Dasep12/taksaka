@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
+import '../../../../shared/widgets/file_picker_widget.dart';
 import '../../domain/request_models.dart';
 import '../../data/request_service.dart';
 
@@ -21,7 +23,7 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> {
   final List<String> _permissionTypes = ['Sakit', 'Izin Keperluan Keluarga', 'Izin Dinas Luar', 'Lainnya'];
   
   final _descCtrl = TextEditingController();
-  
+  List<PlatformFile> _attachedFiles = [];
   bool _isLoading = false;
 
   Future<void> _pickDate() async {
@@ -109,7 +111,7 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: AppColors.grey100,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.grey200),
               ),
@@ -150,7 +152,7 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: AppColors.grey100,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.grey200),
                     ),
@@ -189,28 +191,13 @@ class _PermissionRequestScreenState extends State<PermissionRequestScreen> {
             // Lampiran
             const Text('Lampiran', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.grey800)),
             const SizedBox(height: AppSpacing.sm),
-            GestureDetector(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fitur upload file belum tersedia')),
-                );
+            FilePickerWidget(
+              files: _attachedFiles,
+              onPick: () async {
+                final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+                if (result != null) setState(() => _attachedFiles.addAll(result.files));
               },
-              child: Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.grey100,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.grey200),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.upload_file_rounded, color: AppColors.grey600),
-                    SizedBox(width: 8),
-                    Text('Pilih File', style: TextStyle(color: AppColors.grey800, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
+              onRemove: (i) => setState(() => _attachedFiles.removeAt(i)),
             ),
             
             const SizedBox(height: AppSpacing.xxxl),

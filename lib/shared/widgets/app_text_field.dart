@@ -101,9 +101,7 @@ class _AppTextFieldState extends State<AppTextField> {
               fontWeight: FontWeight.w400,
             ),
             filled: true,
-            fillColor: _hasFocus
-                ? AppColors.primarySurface
-                : AppColors.grey100,
+            fillColor: Colors.white,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 14,
